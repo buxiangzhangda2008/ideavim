@@ -285,6 +285,7 @@ public class VimArgTextObjExtension implements VimExtension {
     private int rightBracket;
     private @Nls String error = null;
     private static final String QUOTES = "\"'";
+    private static final String ANGLES = "<>";
 
     private static final int MAX_SEARCH_LINES = 10;
     private static final int MAX_SEARCH_OFFSET = MAX_SEARCH_LINES * 80;
@@ -423,7 +424,7 @@ public class VimArgTextObjExtension implements VimExtension {
       final int lineEndOffset = document.getLineEndOffset(lineNo);
       int i = lineStartOffset;
       while (i <= leftBound) {
-        if (isQuote(i)) {
+        if (isQuote(i)||isAngle(i)) {
           final int endOfQuotedText = skipQuotedTextForward(i, lineEndOffset);
           if (endOfQuotedText >= leftBound) {
             leftBound = i - 1;
@@ -446,7 +447,7 @@ public class VimArgTextObjExtension implements VimExtension {
         if (brackets.isOpenBracket(ch)) {
           rightBound = skipSexp(rightBound, rightBracket, SexpDirection.forward(brackets));
         } else {
-          if (isQuoteChar(ch)) {
+          if (isQuoteChar(ch)||isAngleChar(ch)) {
             rightBound = skipQuotedTextForward(rightBound, rightBracket);
           }
           ++rightBound;
@@ -463,7 +464,7 @@ public class VimArgTextObjExtension implements VimExtension {
         if (brackets.isCloseBracket(ch)) {
           leftBound = skipSexp(leftBound, leftBracket, SexpDirection.backward(brackets));
         } else {
-          if (isQuoteChar(ch)) {
+          if (isQuoteChar(ch)||isAngleChar(ch)) {
             leftBound = skipQuotedTextBackward(leftBound, leftBracket);
           }
           --leftBound;
@@ -471,10 +472,22 @@ public class VimArgTextObjExtension implements VimExtension {
       }
     }
 
+    private boolean isAngle(final int i) {
+      return ANGLES.indexOf(getCharAt(i)) != -1;
+    }
     private boolean isQuote(final int i) {
       return QUOTES.indexOf(getCharAt(i)) != -1;
     }
 
+    private static boolean isAngleChar(final int ch) {
+      return ANGLES.indexOf(ch) != -1;
+    }
+    private static boolean isRightAngleChar(final int ch) {
+      return '>'==ch;
+    }
+    private static boolean isLeftAngleChar(final int ch) {
+      return '<'==ch;
+    }
     private static boolean isQuoteChar(final int ch) {
       return QUOTES.indexOf(ch) != -1;
     }
@@ -486,7 +499,10 @@ public class VimArgTextObjExtension implements VimExtension {
 
     private int skipQuotedTextForward(final int start, final int end) {
       assert start < end;
-      final char quoteChar = getCharAt(start);
+      char quoteChar = getCharAt(start);
+      if(quoteChar=='<'){
+        quoteChar='>';
+      }
       boolean backSlash = false;
       int i = start + 1;
 
@@ -637,7 +653,7 @@ public class VimArgTextObjExtension implements VimExtension {
               }
             }
           } else {
-            if (isQuoteChar(ch)) {
+            if (isQuoteChar(ch)||isAngleChar(ch)) {
               i = dir.skipQuotedText(i, end, this);
             }
           }
@@ -699,7 +715,7 @@ public class VimArgTextObjExtension implements VimExtension {
         if (brackets.isCloseBracket(ch)) {
           leftBracket = skipSexp(leftBracket, start, SexpDirection.backward(brackets));
         } else {
-          if (isQuoteChar(ch)) {
+          if (isQuoteChar(ch)||isLeftAngleChar(ch)) {
             leftBracket = skipQuotedTextBackward(leftBracket, start);
           } else {
             if (leftBracket == start) {
@@ -724,7 +740,7 @@ public class VimArgTextObjExtension implements VimExtension {
         if (brackets.isOpenBracket(ch)) {
           rightBracket = skipSexp(rightBracket, end, SexpDirection.forward(brackets));
         } else {
-          if (isQuoteChar(ch)) {
+          if (isQuoteChar(ch)||isRightAngleChar(ch)) {
             rightBracket = skipQuotedTextForward(rightBracket, end);
           }
           ++rightBracket;
